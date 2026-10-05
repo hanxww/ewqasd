@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Аналитика портфолио</title>
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:#F7F8FA;color:#111318;font:15px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+    .wrap{width:min(1100px,calc(100% - 28px));margin:0 auto;padding:48px 0 80px}.top{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:28px;flex-wrap:wrap}
+    h1{font-size:clamp(34px,5vw,54px);letter-spacing:-.045em;line-height:1;margin:0}.muted{color:#6B7280}.auth{display:flex;gap:8px;flex-wrap:wrap}.auth input{height:48px;min-width:280px;padding:0 14px;border:1px solid #E5E7EB;border-radius:12px;background:#fff}.auth button{height:48px;padding:0 18px;border:0;border-radius:12px;background:#4F46E5;color:#fff;font-weight:750;cursor:pointer}
+    .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.card,.panel{background:#fff;border:1px solid #E5E7EB;border-radius:18px}.card{padding:20px}.card b{display:block;font-size:30px;letter-spacing:-.04em;margin-top:8px}.label{font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:.08em;font-weight:750}.panels{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.panel{padding:22px}h2{font-size:20px;margin:0 0 16px}.row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid #EEF0F3}.row:first-of-type{border-top:0}.row span:last-child{font-weight:750}.error{margin-top:16px;color:#B91C1C}
+    table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:right;padding:9px 8px;border-top:1px solid #EEF0F3}th:first-child,td:first-child{text-align:left}th{color:#6B7280;font-weight:650}
+    @media(max-width:900px){.grid{grid-template-columns:repeat(3,1fr)}.panels{grid-template-columns:1fr}}@media(max-width:560px){.grid{grid-template-columns:repeat(2,1fr)}.auth input{min-width:0;width:100%}.auth{width:100%}.auth button{flex:1}.card b{font-size:26px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top">
+      <div><div class="label">Внутренняя статистика</div><h1>Аналитика портфолио</h1><p class="muted">Посещения, кейсы, клики, Telegram и заявки — без сторонних рекламных трекеров.</p></div>
+      <div class="auth"><input id="key" type="password" placeholder="ANALYTICS_KEY"><button id="load">Показать</button></div>
+    </div>
+    <div id="content" hidden>
+      <section class="grid" id="summary"></section>
+      <section class="panels">
+        <div class="panel"><h2>Клики по кнопкам</h2><div id="clicks"></div></div>
+        <div class="panel"><h2>Доходят до секций</h2><div id="sections"></div></div>
+      </section>
+      <section class="panel" style="margin-top:16px;overflow:auto"><h2>Последние 30 дней</h2><table><thead><tr><th>Дата</th><th>Просмотры</th><th>Визиты</th><th>Посетители</th><th>Кейсы</th><th>Telegram</th><th>Формы</th></tr></thead><tbody id="daily"></tbody></table></section>
+    </div>
+    <div class="error" id="error"></div>
+  </main>
+  <script>
+    const input=document.getElementById('key'); const content=document.getElementById('content'); const error=document.getElementById('error');
+    input.value=sessionStorage.getItem('analytics_key')||'';
+    const cards=[['Посетители','visitors'],['Визиты','visits'],['Просмотры','pageViews'],['Дошли до кейсов','worksReached'],['Открыли Telegram','telegramOpens'],['Отправили форму','formSubmits']];
+    function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+    function rows(obj){const entries=Object.entries(obj||{}).sort((a,b)=>b[1]-a[1]); return entries.length?entries.map(([k,v])=>`<div class="row"><span>${esc(k)}</span><span>${v}</span></div>`).join(''):'<p class="muted">Пока данных нет.</p>'}
+    async function load(){error.textContent=''; const key=input.value.trim(); if(!key){error.textContent='Введите ключ из .env';return} sessionStorage.setItem('analytics_key',key); try{const r=await fetch('/api/stats?key='+encodeURIComponent(key),{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'Ошибка');document.getElementById('summary').innerHTML=cards.map(([l,k])=>`<div class="card"><div class="label">${l}</div><b>${d.summary[k]}</b></div>`).join('');document.getElementById('clicks').innerHTML=rows(d.clicks);document.getElementById('sections').innerHTML=rows(d.sections)+`<div class="row"><span>Конверсия в кейсы</span><span>${d.summary.worksReachRate}%</span></div><div class="row"><span>Конверсия формы</span><span>${d.summary.formConversion}%</span></div>`;document.getElementById('daily').innerHTML=(d.daily||[]).slice().reverse().map(x=>`<tr><td>${x.date}</td><td>${x.pageViews||0}</td><td>${x.sessions||0}</td><td>${x.visitors||0}</td><td>${x.worksReached||0}</td><td>${x.telegramOpens||0}</td><td>${x.formSubmits||0}</td></tr>`).join('');content.hidden=false}catch(e){content.hidden=true;error.textContent=e.message}}
+    document.getElementById('load').addEventListener('click',load); input.addEventListener('keydown',e=>{if(e.key==='Enter')load()}); if(input.value)load();
+  </script>
+</body>
+</html>
